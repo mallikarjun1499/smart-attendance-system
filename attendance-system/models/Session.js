@@ -13,19 +13,13 @@ const sessionSchema = new Schema(
     teacherName: { type: String, required: true, trim: true },
     subject: { type: String, required: true, trim: true },
     location: { type: locationSchema, required: true },
-    code: { type: String, required: true, unique: true },
+    code: { type: String, required: true, unique: true, index: true },
     link: { type: String, required: true },
-    expiresAt: { type: Date, required: true },
+    expiresAt: { type: Date, required: true, index: true },
   },
   { timestamps: true }
 );
 
-sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-
 module.exports = model('Session', sessionSchema);
-
-
-
-
 
 

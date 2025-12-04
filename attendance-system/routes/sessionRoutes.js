@@ -13,7 +13,8 @@ const LINK_TTL_MINUTES = 10;
 const buildAttendLink = (req, code) => {
   const baseUrl =
     process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
-  return `${baseUrl}/attend.html?code=${code}`;
+  // Use /attend (route), not attend.html, so this works on Render + local
+  return `${baseUrl}/attend?code=${code}`;
 };
 
 const ensureSessionActive = (session) => {
