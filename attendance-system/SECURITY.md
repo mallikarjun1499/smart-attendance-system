@@ -178,3 +178,4 @@ To migrate existing data (optional):
 
 Each device can only submit once per session, and each roll number can only be used once per session. Combined with geofencing and time limits, this provides strong protection against proxy attendance.
 
+

@@ -205,6 +205,8 @@
     </div>
 
     <script>
+      const API_BASE = 'https://smart-attendance-3d96.onrender.com';
+
       const sessionForm = document.getElementById('sessionForm');
       const getLocationBtn = document.getElementById('getLocation');
       const locationStatus = document.getElementById('locationStatus');
@@ -260,7 +262,7 @@
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
 
         try {
-          const response = await fetch('/api/teacher/session', {
+          const response = await fetch(`${API_BASE}/api/teacher/session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -310,7 +312,7 @@
 
       function downloadExport(type) {
         const subject = subjectInput.value.trim();
-        const base = `/api/export/${type}`;
+        const base = `${API_BASE}/api/export/${type}`;
         const url = subject ? `${base}?subject=${encodeURIComponent(subject)}` : base;
         window.location = url;
       }

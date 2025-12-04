@@ -152,6 +152,8 @@
     </div>
 
     <script>
+      const API_BASE = 'https://smart-attendance-3d96.onrender.com';
+
       const params = new URLSearchParams(window.location.search);
       const codeInput = document.getElementById('code');
       const form = document.getElementById('attendanceForm');
@@ -274,7 +276,7 @@
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
 
         try {
-          const response = await fetch('/api/student/attendance', {
+          const response = await fetch(`${API_BASE}/api/student/attendance`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
