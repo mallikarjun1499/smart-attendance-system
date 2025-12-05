@@ -26,8 +26,8 @@
         <div class="page-header-left">
           <div class="avatar-container student-avatar">
             <div class="avatar-glow"></div>
-            <div class="avatar-icon">
-              <i class="fa-solid fa-user-graduate"></i>
+            <div class="avatar-icon" style="font-size: 2.5rem;">
+              🎓
             </div>
             <div class="avatar-status">
               <span class="status-dot"></span>
@@ -72,7 +72,7 @@
             </div>
             <div class="security-content">
               <strong>Security Notice</strong>
-              <p>Each device can only submit attendance once per session to prevent proxy attendance. Make sure you submit with your own details.</p>
+              <p>Each student (roll number) can only mark attendance once per session. Use your own roll number and name. Multiple students can mark attendance from the same location or device.</p>
             </div>
           </div>
 
@@ -115,7 +115,11 @@
                 placeholder="e.g. CS21-045"
                 required
                 autocomplete="off"
+                style="text-transform: uppercase;"
               />
+              <small style="display: block; margin-top: 4px; color: #64748b; font-size: 12px;">
+                <i class="fa-solid fa-lock"></i> This will be locked after first entry
+              </small>
             </label>
 
             <div class="location-card">
@@ -162,35 +166,38 @@
       const feedback = document.getElementById('feedback');
       const submitBtn = form.querySelector('button[type="submit"]');
 
-      // Generate unique session token for this device + session code
-      const getSessionKey = (code) => `attendance_submitted_${code.toUpperCase()}`;
+      const rollNoInput = document.getElementById('rollNo');
+      const studentNameInput = document.getElementById('studentName');
+      
+      // Lock roll number after first entry to prevent changes
+      const lockRollNumber = () => {
+        const savedRollNo = localStorage.getItem('student_rollno');
+        if (savedRollNo) {
+          rollNoInput.value = savedRollNo;
+          rollNoInput.readOnly = true;
+          rollNoInput.style.backgroundColor = '#f1f5f9';
+          rollNoInput.style.cursor = 'not-allowed';
+        }
+      };
+
+      // Save roll number on blur (when user leaves the field)
+      rollNoInput.addEventListener('blur', () => {
+        const rollNo = rollNoInput.value.trim().toUpperCase();
+        if (rollNo) {
+          localStorage.setItem('student_rollno', rollNo);
+          lockRollNumber();
+        }
+      });
+
+      // Lock on page load if roll number was previously entered
+      lockRollNumber();
+
+      // Generate unique session token for roll number + session code
+      const getSessionKey = (code, rollNo) => `attendance_${code.toUpperCase()}_${rollNo.toUpperCase()}`;
 
       const presetCode = params.get('code');
       if (presetCode) {
         codeInput.value = presetCode.toUpperCase();
-        // Check if already submitted for this session
-        checkAlreadySubmitted(presetCode.toUpperCase());
-      }
-
-      // Check if device already submitted for current session
-      function checkAlreadySubmitted(code) {
-        const sessionKey = getSessionKey(code);
-        const submitted = localStorage.getItem(sessionKey);
-        if (submitted) {
-          disableForm();
-          feedback.classList.remove('hidden');
-          feedback.className = 'error feedback-banner';
-          feedback.innerHTML = `
-            <div class="feedback-content">
-              <i class="fa-solid fa-shield-halved"></i>
-              <div>
-                <strong>Already Submitted</strong>
-                <p>This device has already marked attendance for this session. Each device can only submit once to prevent proxy attendance.</p>
-                <small>Submitted: ${new Date(submitted).toLocaleString()}</small>
-              </div>
-            </div>
-          `;
-        }
       }
 
       // Disable form after submission
@@ -237,21 +244,16 @@
 
       captureBtn.addEventListener('click', captureLocation);
 
-      // Check on code change
-      codeInput.addEventListener('change', () => {
-        const code = codeInput.value.trim().toUpperCase();
-        codeInput.value = code;
-        if (code) {
-          checkAlreadySubmitted(code);
-        }
-      });
+      // Check on code change (removed - we check on server side now)
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        // Check localStorage first
         const code = codeInput.value.trim().toUpperCase();
-        const sessionKey = getSessionKey(code);
+        const rollNo = rollNoInput.value.trim().toUpperCase();
+        
+        // Check localStorage for this specific roll number + session combination
+        const sessionKey = getSessionKey(code, rollNo);
         if (localStorage.getItem(sessionKey)) {
           feedback.classList.remove('hidden');
           feedback.className = 'error feedback-banner';
@@ -259,8 +261,8 @@
             <div class="feedback-content">
               <i class="fa-solid fa-exclamation-triangle"></i>
               <div>
-                <strong>Error</strong>
-                <p>This device has already submitted attendance for this session.</p>
+                <strong>Already Submitted</strong>
+                <p>This roll number has already marked attendance for this session. Each student can only submit once per session.</p>
               </div>
             </div>
           `;
@@ -293,7 +295,7 @@
           const body = await response.json();
 
           if (response.ok) {
-            // Mark as submitted in localStorage
+            // Mark as submitted in localStorage (roll number + session combination)
             localStorage.setItem(sessionKey, new Date().toISOString());
             disableForm();
             feedback.classList.remove('hidden');
@@ -310,7 +312,22 @@
             `;
           } else {
             // Handle different error types
-            if (response.status === 409) {
+            if (response.status === 403) {
+              // Distance too far
+              feedback.classList.remove('hidden');
+              feedback.className = 'error feedback-banner';
+              const distanceText = body.distance ? ` (${body.distance.toFixed(2)}m away, max allowed: 120m)` : '';
+              feedback.innerHTML = `
+                <div class="feedback-content">
+                  <i class="fa-solid fa-exclamation-triangle"></i>
+                  <div>
+                    <strong>Too Far From Classroom</strong>
+                    <p>${body.message}${distanceText}</p>
+                    <small>Please move closer to the classroom location and try again.</small>
+                  </div>
+                </div>
+              `;
+            } else if (response.status === 409) {
               // Conflict - device or rollNo already used
               if (body.alreadySubmitted) {
                 disableForm();
@@ -322,7 +339,7 @@
                     <div>
                       <strong>Already Submitted</strong>
                       <p>${body.message}</p>
-                      <small>Previously submitted as: ${body.alreadySubmitted.rollNo} (${body.alreadySubmitted.studentName}) at ${new Date(body.alreadySubmitted.submittedAt).toLocaleString()}</small>
+                      <small>Roll No: ${body.alreadySubmitted.rollNo} (${body.alreadySubmitted.studentName}) submitted at ${new Date(body.alreadySubmitted.submittedAt).toLocaleString()}</small>
                     </div>
                   </div>
                 `;

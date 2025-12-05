@@ -60,29 +60,7 @@ router.post('/attendance', async (req, res, next) => {
       return res.status(410).json({ message: 'Session expired' });
     }
 
-    // Get device information
-    const clientIP = getClientIP(req);
-    const userAgent = req.headers['user-agent'] || 'unknown';
-    const deviceFingerprint = createDeviceFingerprint(clientIP, userAgent);
-
-    // Check if this device already submitted attendance for this session
-    const existingDeviceSubmission = await Attendance.findOne({
-      session: session._id,
-      deviceFingerprint,
-    });
-
-    if (existingDeviceSubmission) {
-      return res.status(409).json({
-        message: 'This device has already submitted attendance for this session. Each device can only submit once to prevent proxy attendance.',
-        alreadySubmitted: {
-          rollNo: existingDeviceSubmission.rollNo,
-          studentName: existingDeviceSubmission.studentName,
-          submittedAt: existingDeviceSubmission.createdAt,
-        },
-      });
-    }
-
-    // Check if this roll number already exists in this session
+    // Check if this roll number already exists in this session (student-based check)
     const existingRollNo = await Attendance.findOne({
       session: session._id,
       rollNo: rollNo.trim().toUpperCase(),
@@ -90,9 +68,19 @@ router.post('/attendance', async (req, res, next) => {
 
     if (existingRollNo) {
       return res.status(409).json({
-        message: 'This roll number has already been used for attendance in this session.',
+        message: 'This roll number has already been used for attendance in this session. Each student can only mark attendance once per session.',
+        alreadySubmitted: {
+          rollNo: existingRollNo.rollNo,
+          studentName: existingRollNo.studentName,
+          submittedAt: existingRollNo.createdAt,
+        },
       });
     }
+
+    // Get device information for logging only (not for duplicate detection)
+    const clientIP = getClientIP(req);
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    const deviceFingerprint = createDeviceFingerprint(clientIP, userAgent);
 
     const studentLocation = { lat, lng };
     const distance = haversineDistance(studentLocation, session.location);
@@ -126,13 +114,10 @@ router.post('/attendance', async (req, res, next) => {
     });
   } catch (err) {
     if (err.code === 11000) {
-      // Handle unique constraint violations
-      if (err.message.includes('deviceFingerprint')) {
+      // Handle unique constraint violations (session + rollNo)
+      if (err.message.includes('rollNo') || err.message.includes('session')) {
         err.statusCode = 409;
-        err.message = 'This device has already submitted attendance for this session.';
-      } else if (err.message.includes('rollNo')) {
-        err.statusCode = 409;
-        err.message = 'This roll number has already been used for attendance in this session.';
+        err.message = 'This roll number has already been used for attendance in this session. Each student can only mark attendance once per session.';
       } else {
         err.statusCode = 409;
         err.message = 'Duplicate submission detected.';

@@ -15,17 +15,16 @@ const attendanceSchema = new Schema(
     rollNo: { type: String, required: true, trim: true },
     location: { type: locationSchema, required: true },
     distanceMeters: { type: Number, required: true },
-    deviceFingerprint: { type: String, required: true }, // IP + User-Agent hash
-    clientIP: { type: String, required: true },
-    userAgent: { type: String, required: true },
+    deviceFingerprint: { type: String }, // Optional: for logging only, not used for duplicate detection
+    clientIP: { type: String }, // Optional: for logging only
+    userAgent: { type: String }, // Optional: for logging only
   },
   { timestamps: true }
 );
 
-// Prevent duplicate rollNo in same session
+// Primary unique constraint: Prevent duplicate rollNo in same session
+// This is the main duplicate prevention mechanism - based on student identity, not device
 attendanceSchema.index({ session: 1, rollNo: 1 }, { unique: true });
-// Prevent same device from submitting multiple times in same session
-attendanceSchema.index({ session: 1, deviceFingerprint: 1 }, { unique: true });
 
 module.exports = model('Attendance', attendanceSchema);
 
