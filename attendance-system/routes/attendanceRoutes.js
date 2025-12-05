@@ -5,7 +5,7 @@ const Attendance = require('../models/Attendance');
 
 const router = express.Router();
 // Allow 120 meters radius (classroom + corridor)
-const MAX_DISTANCE_METERS = 120;
+const MAX_DISTANCE_METERS = 3000;
 
 // Get client IP address (handles proxies/load balancers)
 const getClientIP = (req) => {
