@@ -141,26 +141,7 @@
 
       if (params.get("code")) codeInput.value = params.get("code").toUpperCase();
 
-      // Lock roll number based on device history
-      const lockRollNumber = () => {
-        const savedRoll = localStorage.getItem("student_rollno");
-        if (savedRoll) {
-          rollNoInput.value = savedRoll;
-          rollNoInput.readOnly = true;
-          rollNoInput.style.backgroundColor = "#f1f5f9";
-        }
-      };
-
-      rollNoInput.addEventListener("blur", () => {
-        const val = rollNoInput.value.trim().toUpperCase();
-        if (val) {
-          localStorage.setItem("student_rollno", val);
-          lockRollNumber();
-        }
-      });
-
-      lockRollNumber();
-
+      
       // NEW ACCURATE GPS SYSTEM
       const captureLocation = () => {
         if (!navigator.geolocation) {
