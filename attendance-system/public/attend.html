@@ -227,7 +227,11 @@
             statusSpan.classList.add('error-status');
             captureBtn.disabled = false;
           },
-          { enableHighAccuracy: true }
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
         );
       };
 
@@ -369,5 +373,9 @@
         }
       });
     </script>
+
+    <footer style="text-align: center; padding: 20px; color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-top: 40px;">
+      Created by <strong style="color: #fff;">MALLIKARJUN</strong>
+    </footer>
   </body>
 </html>

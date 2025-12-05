@@ -4,7 +4,8 @@ const Session = require('../models/Session');
 const Attendance = require('../models/Attendance');
 
 const router = express.Router();
-const MAX_DISTANCE_METERS = 10;
+// Allow 120 meters radius (classroom + corridor)
+const MAX_DISTANCE_METERS = 120;
 
 // Get client IP address (handles proxies/load balancers)
 const getClientIP = (req) => {
@@ -96,9 +97,10 @@ router.post('/attendance', async (req, res, next) => {
     const studentLocation = { lat, lng };
     const distance = haversineDistance(studentLocation, session.location);
 
+    // Allow 120 meters radius (classroom + corridor)
     if (distance > MAX_DISTANCE_METERS) {
       return res.status(403).json({
-        message: 'You are outside the allowed range',
+        message: 'You are too far from classroom location.',
         distance,
       });
     }
