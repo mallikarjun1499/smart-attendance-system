@@ -23,18 +23,17 @@
         <div class="page-header-left">
           <div class="avatar-container student-avatar">
             <div class="avatar-glow"></div>
-            <div class="avatar-icon" style="font-size: 2.5rem;">
-              🎓
-            </div>
+            <div class="avatar-icon" style="font-size: 2.5rem;">🎓</div>
           </div>
+
           <div>
             <h1><span class="emoji">🎓</span> Join Attendance</h1>
             <p class="subtitle">
-              <i class="fa-solid fa-link"></i>
-              Use the code or link from your teacher to check-in
+              <i class="fa-solid fa-link"></i> Use the code or link from your teacher
             </p>
           </div>
         </div>
+
         <div class="page-header-right">
           <span class="badge badge-gps pulse">
             <i class="fa-solid fa-location-dot"></i> GPS required
@@ -53,47 +52,42 @@
           </h2>
 
           <p class="card-description">
-            Allow GPS and ensure you are close to your teacher’s location.
+            Allow GPS & stay close to your teacher’s location.
           </p>
 
           <div class="security-notice">
-            <div class="security-icon">
-              <i class="fa-solid fa-shield-halved"></i>
-            </div>
+            <div class="security-icon"><i class="fa-solid fa-shield-halved"></i></div>
             <div class="security-content">
               <strong>Security Notice</strong>
-              <p>
-                Each roll number can mark attendance only once. Multiple
-                students can use same device.
-              </p>
+              <p>Each roll number can submit attendance only once per session.</p>
             </div>
           </div>
 
           <form id="attendanceForm" class="form-grid">
+            <!-- SESSION CODE -->
             <label class="input-group">
               <span class="input-label"><i class="fa-solid fa-key"></i> Session code</span>
-              <input type="text" id="code" placeholder="e.g. 4F9X2B" required style="text-transform: uppercase;" />
+              <input type="text" id="code" required style="text-transform: uppercase;" />
             </label>
 
+            <!-- STUDENT NAME -->
             <label class="input-group">
               <span class="input-label"><i class="fa-solid fa-user"></i> Your name</span>
-              <input type="text" id="studentName" placeholder="e.g. Riya Patel" required />
+              <input type="text" id="studentName" required />
             </label>
 
+            <!-- ROLL NUMBER -->
             <label class="input-group">
               <span class="input-label"><i class="fa-solid fa-id-card"></i> Roll number</span>
               <input
                 type="text"
                 id="rollNo"
-                placeholder="e.g. CS21-045"
                 required
                 style="text-transform: uppercase;"
               />
-              <small style="color:#64748b;font-size:12px;">
-                <i class="fa-solid fa-lock"></i> This will be locked after first entry
-              </small>
             </label>
 
+            <!-- GPS -->
             <div class="location-card">
               <div class="location-header">
                 <i class="fa-solid fa-map-marker-alt"></i> <span>GPS Location</span>
@@ -101,8 +95,7 @@
 
               <div class="location-row">
                 <button type="button" id="captureLocation" class="btn-outline btn-location">
-                  <i class="fa-solid fa-location-crosshairs"></i>
-                  <span>Allow GPS</span>
+                  <i class="fa-solid fa-location-crosshairs"></i> Allow GPS
                 </button>
 
                 <div class="location-status-wrapper">
@@ -117,8 +110,7 @@
             <input type="hidden" id="studentLng" />
 
             <button type="submit" class="btn-primary w-full btn-submit">
-              <span>Mark Attendance</span>
-              <i class="fa-solid fa-check"></i>
+              <span>Mark Attendance</span> <i class="fa-solid fa-check"></i>
             </button>
           </form>
 
@@ -128,34 +120,43 @@
     </div>
 
     <script>
+      // Read session code from URL
       const params = new URLSearchParams(window.location.search);
       const codeInput = document.getElementById("code");
+      if (params.get("code"))
+        codeInput.value = params.get("code").toUpperCase();
+
       const form = document.getElementById("attendanceForm");
       const captureBtn = document.getElementById("captureLocation");
       const statusSpan = document.getElementById("studentLocationStatus");
       const latField = document.getElementById("studentLat");
       const lngField = document.getElementById("studentLng");
       const feedback = document.getElementById("feedback");
-      const submitBtn = form.querySelector('button[type="submit"]');
-      const rollNoInput = document.getElementById("rollNo");
+      const submitBtn = form.querySelector("button[type='submit']");
 
-      if (params.get("code")) codeInput.value = params.get("code").toUpperCase();
+      // -----------------------------
+      // SESSION-BASED LOCK (PER DEVICE)
+      // -----------------------------
+      const sessionLockKey = (code) => `attendance_session_${code}`;
 
-      
-      // NEW ACCURATE GPS SYSTEM
+      // -----------------------------
+      // CAPTURE GPS (IMPROVED ACCURACY)
+      // -----------------------------
       const captureLocation = () => {
         if (!navigator.geolocation) {
-          statusSpan.innerHTML = "<i class='fa-solid fa-exclamation-triangle'></i> Geolocation not supported";
+          statusSpan.innerHTML =
+            "<i class='fa-solid fa-exclamation-triangle'></i> Not supported";
           return;
         }
 
         captureBtn.disabled = true;
-        statusSpan.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i> Getting accurate location...";
+        statusSpan.innerHTML =
+          "<i class='fa-solid fa-spinner fa-spin'></i> Getting accurate GPS...";
 
         let attempts = 0;
-        let bestFix = null;
+        let best = null;
 
-        const tryGps = () => {
+        const tryFix = () => {
           attempts++;
 
           navigator.geolocation.getCurrentPosition(
@@ -163,56 +164,63 @@
               const acc = pos.coords.accuracy;
               const { latitude, longitude } = pos.coords;
 
-              if (!bestFix || acc < bestFix.accuracy) {
-                bestFix = { latitude, longitude, accuracy: acc };
-              }
+              if (!best || acc < best.acc) best = { lat: latitude, lng: longitude, acc };
 
               if (acc <= 80 || attempts >= 3) {
-                latField.value = bestFix.latitude;
-                lngField.value = bestFix.longitude;
+                latField.value = best.lat;
+                lngField.value = best.lng;
 
                 statusSpan.innerHTML =
-                  `<i class='fa-solid fa-check-circle'></i> Location set (${bestFix.latitude.toFixed(5)}, ${bestFix.longitude.toFixed(5)})`;
-
+                  `<i class='fa-solid fa-check-circle'></i> Location set (${best.lat.toFixed(
+                    5
+                  )}, ${best.lng.toFixed(5)})`;
                 statusSpan.classList.add("success-status");
                 captureBtn.classList.add("success");
-                captureBtn.innerHTML = "<i class='fa-solid fa-check'></i> <span>Location Ready</span>";
+                captureBtn.innerHTML =
+                  "<i class='fa-solid fa-check'></i> Location Ready";
               } else {
                 statusSpan.innerHTML =
-                  `<i class='fa-solid fa-spinner fa-spin'></i> Improving accuracy... (${acc.toFixed(0)}m)`;
-                setTimeout(tryGps, 1000);
+                  `<i class='fa-solid fa-spinner fa-spin'></i> Improving (${acc.toFixed(
+                    0
+                  )}m)...`;
+                setTimeout(tryFix, 1000);
               }
             },
             () => {
               statusSpan.innerHTML =
-                "<i class='fa-solid fa-location-slash'></i> Enable location & try again";
+                "<i class='fa-solid fa-location-slash'></i> Enable GPS & retry";
               captureBtn.disabled = false;
             },
-            { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+            {
+              enableHighAccuracy: true,
+              timeout: 12000,
+              maximumAge: 0,
+            }
           );
         };
 
-        tryGps();
+        tryFix();
       };
 
       captureBtn.addEventListener("click", captureLocation);
 
-      const getSessionKey = (code, roll) => `attendance_${code}_${roll}`;
-
+      // -----------------------------
+      // SUBMIT ATTENDANCE
+      // -----------------------------
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const code = codeInput.value.trim().toUpperCase();
-        const roll = rollNoInput.value.trim().toUpperCase();
+        const roll = document.getElementById("rollNo").value.trim().toUpperCase();
 
-        const key = getSessionKey(code, roll);
-        if (localStorage.getItem(key)) {
+        // Session lock (same device cannot submit twice)
+        if (localStorage.getItem(sessionLockKey(code))) {
           feedback.className = "feedback-banner error";
           feedback.classList.remove("hidden");
           feedback.innerHTML = `
             <div class="feedback-content">
               <i class="fa-solid fa-exclamation-triangle"></i>
-              <strong>Already Submitted</strong>
+              Already submitted on this device
             </div>`;
           return;
         }
@@ -223,7 +231,8 @@
         }
 
         submitBtn.disabled = true;
-        submitBtn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i> Submitting...";
+        submitBtn.innerHTML =
+          "<i class='fa-solid fa-spinner fa-spin'></i> Submitting...";
 
         try {
           const res = await fetch("/api/student/attendance", {
@@ -241,14 +250,17 @@
           const data = await res.json();
 
           if (res.ok) {
-            localStorage.setItem(key, "done");
+            // Save session lock ONLY (NOT roll number)
+            localStorage.setItem(sessionLockKey(code), "submitted");
+
             feedback.className = "feedback-banner success";
             feedback.classList.remove("hidden");
             feedback.innerHTML = `
               <div class="feedback-content">
                 <i class="fa-solid fa-check-circle"></i>
-                <strong>Attendance marked!</strong>
+                Attendance marked!
               </div>`;
+
             form.querySelectorAll("input, button").forEach((e) => (e.disabled = true));
           } else {
             feedback.className = "feedback-banner error";
@@ -256,8 +268,9 @@
             feedback.innerHTML = `
               <div class="feedback-content">
                 <i class="fa-solid fa-exclamation-triangle"></i>
-                <strong>${data.message}</strong>
+                ${data.message}
               </div>`;
+
             submitBtn.disabled = false;
             submitBtn.innerHTML = "Mark Attendance";
           }
