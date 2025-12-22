@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student | Smart Attendance</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+  </head>
+
+  <body>
+    <div class="page-wrapper">
+      <div class="bg-decoration">
+        <div class="bg-circle circle-1"></div>
+        <div class="bg-circle circle-2"></div>
+        <div class="bg-circle circle-3"></div>
+      </div>
+
+      <header class="page-header fade-in">
+        <div class="page-header-left">
+          <div class="avatar-container student-avatar">
+            <div class="avatar-glow"></div>
+            <div class="avatar-icon" style="font-size: 2.5rem;">🎓</div>
+          </div>
+
+          <div>
+            <h1><span class="emoji">🎓</span> Join Attendance</h1>
+            <p class="subtitle">
+              <i class="fa-solid fa-link"></i> Use the code or link from your teacher
+            </p>
+          </div>
+        </div>
+
+        <div class="page-header-right">
+          <span class="badge badge-gps pulse">
+            <i class="fa-solid fa-location-dot"></i> GPS required
+          </span>
+        </div>
+      </header>
+
+      <main class="cards-grid single">
+        <section class="card elevate slide-up">
+          <div class="card-header-icon">
+            <i class="fa-solid fa-clipboard-check"></i>
+          </div>
+
+          <h2 class="card-title">
+            <span class="emoji">✅</span> Mark your attendance
+          </h2>
+
+          <p class="card-description">
+            Allow GPS & stay close to your teacher’s location.
+          </p>
+
+          <div class="security-notice">
+            <div class="security-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="security-content">
+              <strong>Security Notice</strong>
+              <p>Each roll number can submit attendance only once per session.</p>
+            </div>
+          </div>
+
+          <form id="attendanceForm" class="form-grid">
+            <!-- SESSION CODE -->
+            <label class="input-group">
+              <span class="input-label"><i class="fa-solid fa-key"></i> Session code</span>
+              <input type="text" id="code" required style="text-transform: uppercase;" />
+            </label>
+
+            <!-- STUDENT NAME -->
+            <label class="input-group">
+              <span class="input-label"><i class="fa-solid fa-user"></i> Your name</span>
+              <input type="text" id="studentName" required />
+            </label>
+
+            <!-- ROLL NUMBER -->
+            <label class="input-group">
+              <span class="input-label"><i class="fa-solid fa-id-card"></i> Roll number</span>
+              <input
+                type="text"
+                id="rollNo"
+                required
+                style="text-transform: uppercase;"
+              />
+            </label>
+
+            <!-- GPS -->
+            <div class="location-card">
+              <div class="location-header">
+                <i class="fa-solid fa-map-marker-alt"></i> <span>GPS Location</span>
+              </div>
+
+            
+              <div class="location-row">
+                <button type="button" id="captureLocation" class="btn-outline btn-location">
+                  <i class="fa-solid fa-location-crosshairs"></i> Allow GPS
+                </button>
+
+                <div class="location-status-wrapper">
+                  <span id="studentLocationStatus" class="location-status">
+                    <i class="fa-solid fa-clock"></i> Location not set
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <input type="hidden" id="studentLat" />
+            <input type="hidden" id="studentLng" />
+
+            <button type="submit" class="btn-primary w-full btn-submit">
+              <span>Mark Attendance</span> <i class="fa-solid fa-check"></i>
+            </button>
+          </form>
+
+          <section id="feedback" class="hidden feedback-banner"></section>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      // Read session code from URL
+      const params = new URLSearchParams(window.location.search);
+      const codeInput = document.getElementById("code");
+      if (params.get("code"))
+        codeInput.value = params.get("code").toUpperCase();
+
+      const form = document.getElementById("attendanceForm");
+      const captureBtn = document.getElementById("captureLocation");
+      const statusSpan = document.getElementById("studentLocationStatus");
+      const latField = document.getElementById("studentLat");
+      const lngField = document.getElementById("studentLng");
+      const feedback = document.getElementById("feedback");
+      const submitBtn = form.querySelector("button[type='submit']");
+
+      // -----------------------------
+      // SESSION-BASED LOCK (PER DEVICE)
+      // -----------------------------
+      const sessionLockKey = (code) => `attendance_session_${code}`;
+
+      // -----------------------------
+      // CAPTURE GPS (IMPROVED ACCURACY)
+      // -----------------------------
+      const captureLocation = () => {
+        if (!navigator.geolocation) {
+          statusSpan.innerHTML =
+            "<i class='fa-solid fa-exclamation-triangle'></i> Not supported";
+          return;
+        }
+
+        captureBtn.disabled = true;
+        statusSpan.innerHTML =
+          "<i class='fa-solid fa-spinner fa-spin'></i> Getting accurate GPS...";
+
+        let attempts = 0;
+        let best = null;
+
+        const tryFix = () => {
+          attempts++;
+
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const acc = pos.coords.accuracy;
+              const { latitude, longitude } = pos.coords;
+
+              if (!best || acc < best.acc) best = { lat: latitude, lng: longitude, acc };
+
+              if (acc <= 80 || attempts >= 3) {
+                latField.value = best.lat;
+                lngField.value = best.lng;
+
+                statusSpan.innerHTML =
+                  `<i class='fa-solid fa-check-circle'></i> Location set (${best.lat.toFixed(
+                    5
+                  )}, ${best.lng.toFixed(5)})`;
+                statusSpan.classList.add("success-status");
+                captureBtn.classList.add("success");
+                captureBtn.innerHTML =
+                  "<i class='fa-solid fa-check'></i> Location Ready";
+              } else {
+                statusSpan.innerHTML =
+                  `<i class='fa-solid fa-spinner fa-spin'></i> Improving (${acc.toFixed(
+                    0
+                  )}m)...`;
+                setTimeout(tryFix, 1000);
+              }
+            },
+            () => {
+              statusSpan.innerHTML =
+                "<i class='fa-solid fa-location-slash'></i> Enable GPS & retry";
+              captureBtn.disabled = false;
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 12000,
+              maximumAge: 0,
+            }
+          );
+        };
+
+        tryFix();
+      };  
+
+      captureBtn.addEventListener("click", captureLocation);
+
+      // -----------------------------
+      // SUBMIT ATTENDANCE
+      // -----------------------------
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const code = codeInput.value.trim().toUpperCase();
+        const roll = document.getElementById("rollNo").value.trim().toUpperCase();
+
+        // Session lock (same device cannot submit twice)
+        if (localStorage.getItem(sessionLockKey(code))) {
+          feedback.className = "feedback-banner error";
+          feedback.classList.remove("hidden");
+          feedback.innerHTML = `
+            <div class="feedback-content">
+              <i class="fa-solid fa-exclamation-triangle"></i>
+              Already submitted on this device
+            </div>`;
+          return;
+        }
+
+        if (!latField.value) {
+          alert("Please allow GPS first.");
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML =
+          "<i class='fa-solid fa-spinner fa-spin'></i> Submitting...";
+
+        try {
+          const res = await fetch("/api/student/attendance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code,
+              studentName: document.getElementById("studentName").value.trim(),
+              rollNo: roll,
+              lat: Number(latField.value),
+              lng: Number(lngField.value),
+            }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            // Save session lock ONLY (NOT roll number)
+            localStorage.setItem(sessionLockKey(code), "submitted");
+
+            feedback.className = "feedback-banner success";
+            feedback.classList.remove("hidden");
+            feedback.innerHTML = `
+              <div class="feedback-content">
+                <i class="fa-solid fa-check-circle"></i>
+                Attendance marked!
+              </div>`;
+
+            form.querySelectorAll("input, button").forEach((e) => (e.disabled = true));
+          } else {
+            feedback.className = "feedback-banner error";
+            feedback.classList.remove("hidden");
+            feedback.innerHTML = `
+              <div class="feedback-content">
+                <i class="fa-solid fa-exclamation-triangle"></i>
+                ${data.message}
+              </div>`;
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = "Mark Attendance";
+          }
+        } catch (err) {
+          feedback.className = "feedback-banner error";
+          feedback.classList.remove("hidden");
+          feedback.innerHTML = `<strong>Network error</strong>`;
+        }
+      });
+    </script>
+
+    <footer style="text-align:center;padding:20px;color:#fff8;font-size:14px;">
+      Created by <strong style="color:#fff;">MALLIKARJUN</strong>
+    </footer>
+  </body>
+</html>
